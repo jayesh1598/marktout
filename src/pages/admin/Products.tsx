@@ -350,16 +350,19 @@ export const Products: React.FC = () => {
 
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
+    const defaultImage = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
     const newProduct: Product = {
-      id: Math.max(...productsList.map(p => p.id), 0) + 1,
+      id: Math.max(...productsList.map((p) => p.id), 0) + 1,
       title: formData.title,
-      price: parseFloat(formData.price),
-      originalPrice: parseFloat(formData.originalPrice) || 0,
-      image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400',
+      price: Number.parseFloat(formData.price) || 0,
+      originalPrice: Number.parseFloat(formData.originalPrice) || 0,
+      image: defaultImage,
+      imageGallery: [defaultImage],
       category: formData.category,
-      rating: parseFloat(formData.rating),
-      reviews: parseInt(formData.reviews),
+      rating: Number.parseFloat(formData.rating) || 0,
+      reviews: Number.parseInt(formData.reviews, 10) || 0,
       description: formData.description,
+      bodyHtml: formData.description,
       inStock: formData.inStock,
     };
     setProductsList([...productsList, newProduct]);
