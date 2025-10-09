@@ -245,6 +245,40 @@ const sortRowsByImagePosition = (rows: CsvRow[]): CsvRow[] =>
     return positionA - positionB;
   });
 
+const generateHandleFromTitle = (title: string): string =>
+  title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '') || `product-${Date.now()}`;
+
+const convertWeightToGrams = (
+  weightValue: string,
+  unit: ProductFormState['weightUnit'],
+): number | undefined => {
+  const parsedValue = Number.parseFloat(weightValue);
+  if (!Number.isFinite(parsedValue)) {
+    return undefined;
+  }
+  switch (unit) {
+    case 'kg':
+      return parsedValue * 1000;
+    case 'lb':
+      return parsedValue * 453.592;
+    default:
+      return parsedValue;
+  }
+};
+
+const sortRowsByImagePosition = (rows: CsvRow[]): CsvRow[] =>
+  [...rows].sort((a, b) => {
+    const positionA = parseIntegerValue(a['Image Position']) ?? Number.MAX_SAFE_INTEGER;
+    const positionB = parseIntegerValue(b['Image Position']) ?? Number.MAX_SAFE_INTEGER;
+    return positionA - positionB;
+  });
+
 const createProductFromGroup = (
   handle: string,
   groupRows: CsvRow[],
