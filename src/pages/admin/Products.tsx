@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { products as initialProducts } from '../../data/products';
+import type { Product as CatalogProduct } from '../../data/products';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -21,22 +22,52 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { Plus, Pencil, Trash2, Search, Upload, Download } from 'lucide-react';
+import Papa from 'papaparse';
 import { toast } from 'sonner@2.0.3';
 
-interface Product {
-  id: number;
-  title: string;
-  price: number;
-  originalPrice: number;
-  image: string;
-  category: string;
-  rating: number;
-  reviews: number;
-  description?: string;
-  inStock?: boolean;
-  colors?: string[];
-  sizes?: string[];
-}
+type OptionValue = {
+  name: string;
+  value: string;
+};
+
+type CsvRow = Record<string, string | undefined | null>;
+
+type Product = CatalogProduct & {
+  imageGallery?: string[];
+  handle?: string;
+  vendor?: string;
+  tags?: string[];
+  standardizedProductType?: string;
+  customProductType?: string;
+  bodyHtml?: string;
+  sku?: string;
+  barcode?: string;
+  status?: string;
+  inventoryQuantity?: number;
+  inventoryPolicy?: string;
+  inventoryTracker?: string;
+  fulfillmentService?: string;
+  requiresShipping?: boolean;
+  taxable?: boolean;
+  grams?: number;
+  weightUnit?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  googleProductCategory?: string;
+  googleShoppingGender?: string;
+  googleShoppingAgeGroup?: string;
+  googleShoppingMpn?: string;
+  googleShoppingAdWordsGrouping?: string;
+  googleShoppingAdWordsLabels?: string[];
+  googleShoppingCondition?: string;
+  googleShoppingCustomProduct?: boolean;
+  googleShoppingCustomLabels?: string[];
+  giftCard?: boolean;
+  published?: boolean;
+  optionValues?: OptionValue[];
+  costPerItem?: number;
+  csvRows?: CsvRow[];
+};
 
 export const Products: React.FC = () => {
   const [productsList, setProductsList] = useState<Product[]>(initialProducts as Product[]);
