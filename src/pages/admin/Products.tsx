@@ -416,8 +416,6 @@ export const Products: React.FC = () => {
     setIsEditDialogOpen(true);
   };
 
-  const categories = Array.from(new Set(initialProducts.map(p => p.category)));
-
   const exportProducts = () => {
     const csvContent = `Title,Price,Original Price,Category,Rating,Reviews,In Stock,Description\n${
       productsList.map(p => 
