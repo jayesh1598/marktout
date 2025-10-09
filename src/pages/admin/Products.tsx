@@ -411,16 +411,79 @@ export const Products: React.FC = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    price: '',
-    originalPrice: '',
-    category: '',
-    description: '',
-    rating: '5',
-    reviews: '0',
-    inStock: true,
-  });
+  const [formData, setFormData] = useState<ProductFormState>(createDefaultFormState());
+  const [inventorySettings, setInventorySettings] = useState<InventorySettings>(
+    defaultInventorySettings,
+  );
+  const [marketingIntegrations, setMarketingIntegrations] = useState<IntegrationItem[]>([
+    {
+      id: 'google-marketing-platform',
+      name: 'Google Marketing Platform',
+      description: 'Sync product feeds for Shopping Ads and performance tracking.',
+      status: 'not_connected',
+      docsUrl: 'https://ads.google.com/',
+    },
+    {
+      id: 'meta-ads',
+      name: 'Meta Ads & Instagram',
+      description: 'Promote catalog items across Facebook and Instagram audiences.',
+      status: 'not_connected',
+      docsUrl: 'https://business.facebook.com/',
+    },
+    {
+      id: 'whatsapp-campaigns',
+      name: 'WhatsApp Campaigns',
+      description: 'Send product announcements and restock alerts via WhatsApp.',
+      status: 'not_connected',
+      docsUrl: 'https://www.whatsapp.com/business/',
+    },
+  ]);
+  const [paymentIntegrations, setPaymentIntegrations] = useState<IntegrationItem[]>([
+    {
+      id: 'phonepe',
+      name: 'PhonePe',
+      description: 'Enable UPI and wallet payments with PhonePe Checkout.',
+      status: 'not_connected',
+      docsUrl: 'https://www.phonepe.com/business-solutions/',
+    },
+    {
+      id: 'razorpay',
+      name: 'Razorpay',
+      description: 'Accept cards, UPI, BNPL, and subscriptions through Razorpay.',
+      status: 'not_connected',
+      docsUrl: 'https://razorpay.com/',
+    },
+    {
+      id: 'payu',
+      name: 'PayU Money',
+      description: 'Collect domestic and international payments with PayU.',
+      status: 'not_connected',
+      docsUrl: 'https://india.payu.com/',
+    },
+    {
+      id: 'gokwik',
+      name: 'GoKwik',
+      description: 'Improve COD conversion with GoKwik’s smart checkout.',
+      status: 'not_connected',
+      docsUrl: 'https://www.gokwik.co/',
+    },
+  ]);
+  const [deliveryIntegrations, setDeliveryIntegrations] = useState<IntegrationItem[]>([
+    {
+      id: 'shiprocket',
+      name: 'Shiprocket',
+      description: 'Manage shipping labels and NDR workflows with Shiprocket.',
+      status: 'not_connected',
+      docsUrl: 'https://www.shiprocket.in/',
+    },
+    {
+      id: 'nimbuzz',
+      name: 'Nimbuzz Logistics',
+      description: 'Automate courier allocation and live tracking with Nimbuzz.',
+      status: 'not_connected',
+      docsUrl: 'https://www.nimbuzz.com/',
+    },
+  ]);
 
   const categoryOptions = useMemo(() => {
     const uniqueCategories = new Map<string, true>();
