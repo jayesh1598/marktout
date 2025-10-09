@@ -520,16 +520,7 @@ export const Products: React.FC = () => {
   });
 
   const resetForm = () => {
-    setFormData({
-      title: '',
-      price: '',
-      originalPrice: '',
-      category: '',
-      description: '',
-      rating: '5',
-      reviews: '0',
-      inStock: true,
-    });
+    setFormData(createDefaultFormState());
   };
 
   const handleAddProduct = (e: React.FormEvent) => {
