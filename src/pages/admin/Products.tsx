@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { products as initialProducts } from '../../data/products';
+import type { Product as CatalogProduct } from '../../data/products';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -20,73 +21,542 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { Plus, Pencil, Trash2, Search, Upload, Download } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Upload,
+  Download,
+  Package,
+  BarChart2,
+  Activity,
+  Megaphone,
+  CreditCard,
+  Truck,
+} from 'lucide-react';
+import Papa from 'papaparse';
 import { toast } from 'sonner@2.0.3';
 
-interface Product {
-  id: number;
+type OptionValue = {
+  name: string;
+  value: string;
+};
+
+type CsvRow = Record<string, string | undefined | null>;
+
+type Product = CatalogProduct & {
+  imageGallery?: string[];
+  handle?: string;
+  vendor?: string;
+  tags?: string[];
+  standardizedProductType?: string;
+  customProductType?: string;
+  bodyHtml?: string;
+  sku?: string;
+  barcode?: string;
+  status?: string;
+  inventoryQuantity?: number;
+  inventoryPolicy?: string;
+  inventoryTracker?: string;
+  fulfillmentService?: string;
+  requiresShipping?: boolean;
+  taxable?: boolean;
+  grams?: number;
+  weightUnit?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  googleProductCategory?: string;
+  googleShoppingGender?: string;
+  googleShoppingAgeGroup?: string;
+  googleShoppingMpn?: string;
+  googleShoppingAdWordsGrouping?: string;
+  googleShoppingAdWordsLabels?: string[];
+  googleShoppingCondition?: string;
+  googleShoppingCustomProduct?: boolean;
+  googleShoppingCustomLabels?: string[];
+  giftCard?: boolean;
+  published?: boolean;
+  optionValues?: OptionValue[];
+  costPerItem?: number;
+  csvRows?: CsvRow[];
+};
+
+type IntegrationStatus = 'connected' | 'not_connected';
+
+type IntegrationItem = {
+  id: string;
+  name: string;
+  description: string;
+  status: IntegrationStatus;
+  docsUrl?: string;
+};
+
+type ProductFormState = {
   title: string;
-  price: number;
-  originalPrice: number;
-  image: string;
+  price: string;
+  originalPrice: string;
   category: string;
-  rating: number;
-  reviews: number;
-  description?: string;
-  inStock?: boolean;
-  colors?: string[];
-  sizes?: string[];
-}
+  description: string;
+  rating: string;
+  reviews: string;
+  inStock: boolean;
+  sku: string;
+  barcode: string;
+  vendor: string;
+  inventoryQuantity: string;
+  inventoryPolicy: 'continue' | 'deny';
+  inventoryTracker: 'shopify' | 'custom';
+  fulfillmentService: 'manual' | 'third-party';
+  costPerItem: string;
+  tags: string;
+  weight: string;
+  weightUnit: 'g' | 'kg' | 'lb';
+};
+
+type InventorySettings = {
+  reorderPoint: string;
+  safetyStock: string;
+  restockLeadTime: string;
+};
+
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+
+const createDefaultFormState = (): ProductFormState => ({
+  title: '',
+  price: '',
+  originalPrice: '',
+  category: '',
+  description: '',
+  rating: '5',
+  reviews: '0',
+  inStock: true,
+  sku: '',
+  barcode: '',
+  vendor: '',
+  inventoryQuantity: '',
+  inventoryPolicy: 'deny',
+  inventoryTracker: 'shopify',
+  fulfillmentService: 'manual',
+  costPerItem: '',
+  tags: '',
+  weight: '',
+  weightUnit: 'g',
+});
+
+const defaultInventorySettings: InventorySettings = {
+  reorderPoint: '25',
+  safetyStock: '50',
+  restockLeadTime: '7',
+};
+
+const parseNumberValue = (value?: string | null): number | undefined => {
+  const normalized = value?.toString().trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const numeric = Number(normalized.replace(/[^0-9.-]+/g, ''));
+  return Number.isFinite(numeric) ? numeric : undefined;
+};
+
+const parseIntegerValue = (value?: string | null): number | undefined => {
+  const numeric = parseNumberValue(value);
+  if (numeric === undefined) {
+    return undefined;
+  }
+  return Math.round(numeric);
+};
+
+const parseBooleanValue = (value?: string | null): boolean | undefined => {
+  const normalized = value?.toString().trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+  if (['true', 'yes', '1'].includes(normalized)) {
+    return true;
+  }
+  if (['false', 'no', '0'].includes(normalized)) {
+    return false;
+  }
+  return undefined;
+};
+
+const parseTagsValue = (value?: string | null): string[] =>
+  value
+    ? value
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0)
+    : [];
+
+const extractDescriptionText = (html?: string | null): string => {
+  if (!html) {
+    return '';
+  }
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
+const buildOptionValues = (row: CsvRow): OptionValue[] => {
+  const optionKeys: Array<[string, string]> = [
+    ['Option1 Name', 'Option1 Value'],
+    ['Option2 Name', 'Option2 Value'],
+    ['Option3 Name', 'Option3 Value'],
+  ];
+
+  return optionKeys
+    .map(([nameKey, valueKey]) => {
+      const name = row[nameKey]?.toString().trim();
+      const value = row[valueKey]?.toString().trim();
+      if (!name || !value) {
+        return null;
+      }
+      return { name, value };
+    })
+    .filter((option): option is OptionValue => option !== null);
+};
+
+const collectGoogleLabels = (row: CsvRow): string[] => {
+  const labelKeys = [
+    'Google Shopping / Custom Label 0',
+    'Google Shopping / Custom Label 1',
+    'Google Shopping / Custom Label 2',
+    'Google Shopping / Custom Label 3',
+    'Google Shopping / Custom Label 4',
+  ];
+
+  return labelKeys
+    .map((key) => row[key]?.toString().trim())
+    .filter((label): label is string => !!label && label.length > 0);
+};
+
+const collectAdWordsLabels = (row: CsvRow): string[] =>
+  parseTagsValue(row['Google Shopping / AdWords Labels']);
+
+const collectImageGallery = (rows: CsvRow[]): string[] =>
+  rows
+    .map((row) => row['Image Src']?.toString().trim())
+    .filter((src): src is string => !!src && src.length > 0);
+
+const sortRowsByImagePosition = (rows: CsvRow[]): CsvRow[] =>
+  [...rows].sort((a, b) => {
+    const positionA = parseIntegerValue(a['Image Position']) ?? Number.MAX_SAFE_INTEGER;
+    const positionB = parseIntegerValue(b['Image Position']) ?? Number.MAX_SAFE_INTEGER;
+    return positionA - positionB;
+  });
+
+const generateHandleFromTitle = (title: string): string =>
+  title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '') || `product-${Date.now()}`;
+
+const convertWeightToGrams = (
+  weightValue: string,
+  unit: ProductFormState['weightUnit'],
+): number | undefined => {
+  const parsedValue = Number.parseFloat(weightValue);
+  if (!Number.isFinite(parsedValue)) {
+    return undefined;
+  }
+  switch (unit) {
+    case 'kg':
+      return parsedValue * 1000;
+    case 'lb':
+      return parsedValue * 453.592;
+    default:
+      return parsedValue;
+  }
+};
+
+const createProductFromGroup = (
+  handle: string,
+  groupRows: CsvRow[],
+): Omit<Product, 'id'> | null => {
+  const sortedRows = sortRowsByImagePosition(groupRows);
+  const primaryRow = sortedRows[0];
+
+  if (!primaryRow) {
+    return null;
+  }
+
+  const title = primaryRow['Title']?.toString().trim();
+
+  if (!title) {
+    return null;
+  }
+
+  const bodyHtml = primaryRow['Body (HTML)']?.toString();
+  const descriptionText = extractDescriptionText(bodyHtml);
+
+  const price = parseNumberValue(primaryRow['Variant Price']) ?? 0;
+  const compareAt = parseNumberValue(primaryRow['Variant Compare At Price']) ?? 0;
+  const inventoryQty = parseIntegerValue(primaryRow['Variant Inventory Qty']);
+  const imageGallery = collectImageGallery(sortedRows);
+  const tags = parseTagsValue(primaryRow['Tags']);
+  const requiresShipping = parseBooleanValue(primaryRow['Variant Requires Shipping']);
+  const taxable = parseBooleanValue(primaryRow['Variant Taxable']);
+  const published = parseBooleanValue(primaryRow['Published']);
+  const giftCard = parseBooleanValue(primaryRow['Gift Card']);
+  const customProductFlag = parseBooleanValue(primaryRow['Google Shopping / Custom Product']);
+
+  return {
+    title,
+    price,
+    originalPrice: compareAt,
+    image: imageGallery[0] ?? FALLBACK_IMAGE,
+    imageGallery,
+    category:
+      primaryRow['Custom Product Type']?.toString().trim() ||
+      primaryRow['Standardized Product Type']?.toString().trim() ||
+      'Uncategorized',
+    rating: 0,
+    reviews: 0,
+    description: descriptionText,
+    bodyHtml,
+    inStock: inventoryQty !== undefined ? inventoryQty > 0 : true,
+    handle,
+    vendor: primaryRow['Vendor']?.toString().trim(),
+    tags,
+    standardizedProductType: primaryRow['Standardized Product Type']?.toString().trim(),
+    customProductType: primaryRow['Custom Product Type']?.toString().trim(),
+    sku: primaryRow['Variant SKU']?.toString().trim(),
+    barcode: primaryRow['Variant Barcode']?.toString().trim(),
+    status: primaryRow['Status']?.toString().trim(),
+    inventoryQuantity: inventoryQty,
+    inventoryPolicy: primaryRow['Variant Inventory Policy']?.toString().trim(),
+    inventoryTracker: primaryRow['Variant Inventory Tracker']?.toString().trim(),
+    fulfillmentService: primaryRow['Variant Fulfillment Service']?.toString().trim(),
+    requiresShipping,
+    taxable,
+    grams: parseNumberValue(primaryRow['Variant Grams']),
+    weightUnit: primaryRow['Variant Weight Unit']?.toString().trim(),
+    seoTitle: primaryRow['SEO Title']?.toString().trim(),
+    seoDescription: primaryRow['SEO Description']?.toString().trim(),
+    googleProductCategory: primaryRow['Google Shopping / Google Product Category']?.toString().trim(),
+    googleShoppingGender: primaryRow['Google Shopping / Gender']?.toString().trim(),
+    googleShoppingAgeGroup: primaryRow['Google Shopping / Age Group']?.toString().trim(),
+    googleShoppingMpn: primaryRow['Google Shopping / MPN']?.toString().trim(),
+    googleShoppingAdWordsGrouping: primaryRow['Google Shopping / AdWords Grouping']?.toString().trim(),
+    googleShoppingAdWordsLabels: collectAdWordsLabels(primaryRow),
+    googleShoppingCondition: primaryRow['Google Shopping / Condition']?.toString().trim(),
+    googleShoppingCustomProduct: customProductFlag,
+    googleShoppingCustomLabels: collectGoogleLabels(primaryRow),
+    giftCard,
+    published,
+    optionValues: buildOptionValues(primaryRow),
+    costPerItem: parseNumberValue(primaryRow['Cost per item']),
+    csvRows: groupRows,
+  };
+};
+
+const convertRowsToProducts = (rows: CsvRow[]): Omit<Product, 'id'>[] => {
+  const grouped = new Map<string, CsvRow[]>();
+
+  rows.forEach((row) => {
+    const handle = row['Handle']?.toString().trim();
+    if (!handle) {
+      return;
+    }
+    const group = grouped.get(handle) ?? [];
+    group.push(row);
+    grouped.set(handle, group);
+  });
+
+  const products: Omit<Product, 'id'>[] = [];
+  grouped.forEach((groupRows, handle) => {
+    const product = createProductFromGroup(handle, groupRows);
+    if (product) {
+      products.push(product);
+    }
+  });
+
+  return products;
+};
+
+const mergeImportedProducts = (
+  existing: Product[],
+  incoming: Omit<Product, 'id'>[],
+): Product[] => {
+  let maxId = existing.reduce((max, product) => Math.max(max, product.id), 0);
+  const updated = [...existing];
+
+  incoming.forEach((product) => {
+    const handleKey = product.handle?.toLowerCase();
+    const existingIndex = handleKey
+      ? updated.findIndex((item) => item.handle?.toLowerCase() === handleKey)
+      : -1;
+
+    if (existingIndex >= 0) {
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        ...product,
+      };
+    } else {
+      maxId += 1;
+      updated.push({ ...product, id: maxId });
+    }
+  });
+
+  return updated;
+};
 
 export const Products: React.FC = () => {
   const [productsList, setProductsList] = useState<Product[]>(initialProducts as Product[]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    price: '',
-    originalPrice: '',
-    category: '',
-    description: '',
-    rating: '5',
-    reviews: '0',
-    inStock: true,
+  const [formData, setFormData] = useState<ProductFormState>(createDefaultFormState());
+  const [inventorySettings, setInventorySettings] = useState<InventorySettings>(
+    defaultInventorySettings,
+  );
+  const [marketingIntegrations, setMarketingIntegrations] = useState<IntegrationItem[]>([
+    {
+      id: 'google-marketing-platform',
+      name: 'Google Marketing Platform',
+      description: 'Sync product feeds for Shopping Ads and performance tracking.',
+      status: 'not_connected',
+      docsUrl: 'https://ads.google.com/',
+    },
+    {
+      id: 'meta-ads',
+      name: 'Meta Ads & Instagram',
+      description: 'Promote catalog items across Facebook and Instagram audiences.',
+      status: 'not_connected',
+      docsUrl: 'https://business.facebook.com/',
+    },
+    {
+      id: 'whatsapp-campaigns',
+      name: 'WhatsApp Campaigns',
+      description: 'Send product announcements and restock alerts via WhatsApp.',
+      status: 'not_connected',
+      docsUrl: 'https://www.whatsapp.com/business/',
+    },
+  ]);
+  const [paymentIntegrations, setPaymentIntegrations] = useState<IntegrationItem[]>([
+    {
+      id: 'phonepe',
+      name: 'PhonePe',
+      description: 'Enable UPI and wallet payments with PhonePe Checkout.',
+      status: 'not_connected',
+      docsUrl: 'https://www.phonepe.com/business-solutions/',
+    },
+    {
+      id: 'razorpay',
+      name: 'Razorpay',
+      description: 'Accept cards, UPI, BNPL, and subscriptions through Razorpay.',
+      status: 'not_connected',
+      docsUrl: 'https://razorpay.com/',
+    },
+    {
+      id: 'payu',
+      name: 'PayU Money',
+      description: 'Collect domestic and international payments with PayU.',
+      status: 'not_connected',
+      docsUrl: 'https://india.payu.com/',
+    },
+    {
+      id: 'gokwik',
+      name: 'GoKwik',
+      description: 'Improve COD conversion with GoKwik’s smart checkout.',
+      status: 'not_connected',
+      docsUrl: 'https://www.gokwik.co/',
+    },
+  ]);
+  const [deliveryIntegrations, setDeliveryIntegrations] = useState<IntegrationItem[]>([
+    {
+      id: 'shiprocket',
+      name: 'Shiprocket',
+      description: 'Manage shipping labels and NDR workflows with Shiprocket.',
+      status: 'not_connected',
+      docsUrl: 'https://www.shiprocket.in/',
+    },
+    {
+      id: 'nimbuzz',
+      name: 'Nimbuzz Logistics',
+      description: 'Automate courier allocation and live tracking with Nimbuzz.',
+      status: 'not_connected',
+      docsUrl: 'https://www.nimbuzz.com/',
+    },
+  ]);
+
+  const categoryOptions = useMemo(() => {
+    const uniqueCategories = new Map<string, true>();
+    productsList.forEach((product) => {
+      if (product.category) {
+        uniqueCategories.set(product.category, true);
+      }
+    });
+    if (formData.category) {
+      uniqueCategories.set(formData.category, true);
+    }
+    return Array.from(uniqueCategories.keys()).sort((a, b) => a.localeCompare(b));
+  }, [productsList, formData.category]);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredProducts = productsList.filter((product) => {
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const matchesTitle = product.title.toLowerCase().includes(normalizedQuery);
+    const matchesCategory = product.category
+      ?.toLowerCase()
+      .includes(normalizedQuery);
+    const matchesVendor = product.vendor
+      ?.toLowerCase()
+      .includes(normalizedQuery);
+    const matchesTags = product.tags?.some((tag) =>
+      tag.toLowerCase().includes(normalizedQuery),
+    );
+
+    return matchesTitle || matchesCategory || matchesVendor || matchesTags;
   });
 
-  const filteredProducts = productsList.filter(
-    (product) =>
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const resetForm = () => {
-    setFormData({
-      title: '',
-      price: '',
-      originalPrice: '',
-      category: '',
-      description: '',
-      rating: '5',
-      reviews: '0',
-      inStock: true,
-    });
+    setFormData(createDefaultFormState());
   };
 
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
+    const defaultImage = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+    const inventoryQuantity = Number.parseInt(formData.inventoryQuantity, 10);
+    const normalizedInventory = Number.isFinite(inventoryQuantity) ? inventoryQuantity : undefined;
+    const grams = convertWeightToGrams(formData.weight, formData.weightUnit);
+    const tags = parseTagsValue(formData.tags);
+    const computedCostPerItem = Number.parseFloat(formData.costPerItem);
     const newProduct: Product = {
-      id: Math.max(...productsList.map(p => p.id), 0) + 1,
+      id: Math.max(...productsList.map((p) => p.id), 0) + 1,
       title: formData.title,
-      price: parseFloat(formData.price),
-      originalPrice: parseFloat(formData.originalPrice) || 0,
-      image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400',
+      handle: generateHandleFromTitle(formData.title),
+      price: Number.parseFloat(formData.price) || 0,
+      originalPrice: Number.parseFloat(formData.originalPrice) || 0,
+      image: defaultImage,
+      imageGallery: [defaultImage],
       category: formData.category,
-      rating: parseFloat(formData.rating),
-      reviews: parseInt(formData.reviews),
+      rating: Number.parseFloat(formData.rating) || 0,
+      reviews: Number.parseInt(formData.reviews, 10) || 0,
       description: formData.description,
-      inStock: formData.inStock,
+      bodyHtml: formData.description,
+      inStock:
+        formData.inStock && (normalizedInventory === undefined ? true : normalizedInventory > 0),
+      inventoryQuantity: normalizedInventory,
+      inventoryPolicy: formData.inventoryPolicy,
+      inventoryTracker: formData.inventoryTracker,
+      fulfillmentService: formData.fulfillmentService,
+      costPerItem: Number.isFinite(computedCostPerItem) ? computedCostPerItem : undefined,
+      sku: formData.sku.trim() || undefined,
+      barcode: formData.barcode.trim() || undefined,
+      vendor: formData.vendor.trim() || undefined,
+      tags,
+      grams,
+      weightUnit: formData.weightUnit,
     };
     setProductsList([...productsList, newProduct]);
     setIsAddDialogOpen(false);
@@ -98,18 +568,38 @@ export const Products: React.FC = () => {
     e.preventDefault();
     if (!editingProduct) return;
 
+    const inventoryQuantity = Number.parseInt(formData.inventoryQuantity, 10);
+    const normalizedInventory = Number.isFinite(inventoryQuantity) ? inventoryQuantity : undefined;
+    const grams = convertWeightToGrams(formData.weight, formData.weightUnit);
+    const tags = parseTagsValue(formData.tags);
+    const computedCostPerItem = Number.parseFloat(formData.costPerItem);
+
     const updatedProducts = productsList.map((product) =>
       product.id === editingProduct.id
         ? {
             ...product,
             title: formData.title,
-            price: parseFloat(formData.price),
-            originalPrice: parseFloat(formData.originalPrice) || 0,
+            handle: product.handle ?? generateHandleFromTitle(formData.title),
+            price: Number.parseFloat(formData.price) || 0,
+            originalPrice: Number.parseFloat(formData.originalPrice) || 0,
             category: formData.category,
             description: formData.description,
-            rating: parseFloat(formData.rating),
-            reviews: parseInt(formData.reviews),
-            inStock: formData.inStock,
+            bodyHtml: formData.description,
+            rating: Number.parseFloat(formData.rating) || 0,
+            reviews: Number.parseInt(formData.reviews, 10) || 0,
+            inStock:
+              formData.inStock && (normalizedInventory === undefined ? true : normalizedInventory > 0),
+            inventoryQuantity: normalizedInventory,
+            inventoryPolicy: formData.inventoryPolicy,
+            inventoryTracker: formData.inventoryTracker,
+            fulfillmentService: formData.fulfillmentService,
+            costPerItem: Number.isFinite(computedCostPerItem) ? computedCostPerItem : undefined,
+            sku: formData.sku.trim() || undefined,
+            barcode: formData.barcode.trim() || undefined,
+            vendor: formData.vendor.trim() || undefined,
+            tags,
+            grams,
+            weightUnit: formData.weightUnit,
           }
         : product
     );
@@ -134,7 +624,7 @@ export const Products: React.FC = () => {
       price: product.price.toString(),
       originalPrice: product.originalPrice?.toString() || '',
       category: product.category,
-      description: product.description || '',
+      description: product.bodyHtml ?? product.description ?? '',
       rating: product.rating.toString(),
       reviews: product.reviews.toString(),
       inStock: product.inStock !== false,
@@ -142,13 +632,16 @@ export const Products: React.FC = () => {
     setIsEditDialogOpen(true);
   };
 
-  const categories = Array.from(new Set(initialProducts.map(p => p.category)));
-
   const exportProducts = () => {
     const csvContent = `Title,Price,Original Price,Category,Rating,Reviews,In Stock,Description\n${
-      productsList.map(p => 
-        `"${p.title}",${p.price},${p.originalPrice || ''},${p.category},${p.rating},${p.reviews},${p.inStock !== false ? 'Yes' : 'No'},"${p.description || ''}"`
-      ).join('\n')
+      productsList
+        .map(
+          (p) =>
+            `"${p.title.replace(/"/g, '""')}",${p.price},${p.originalPrice || ''},${p.category},${p.rating},${p.reviews},${
+              p.inStock !== false ? 'Yes' : 'No'
+            },"${(p.bodyHtml ?? p.description ?? '').replace(/"/g, '""')}"`,
+        )
+        .join('\n')
     }`;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -160,7 +653,57 @@ export const Products: React.FC = () => {
   };
 
   const handleImportProducts = () => {
-    toast.info('Import CSV feature - Upload a CSV file with product data to bulk import');
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const [file] = event.target.files ?? [];
+
+    if (!file) {
+      return;
+    }
+
+    Papa.parse<CsvRow>(file, {
+      header: true,
+      skipEmptyLines: 'greedy',
+      transformHeader: (header) => header.trim(),
+      complete: (result) => {
+        if (result.errors.length > 0) {
+          console.error(result.errors);
+          toast.error('The CSV contains formatting errors. Please review and try again.');
+          return;
+        }
+
+        const cleanedRows = (result.data as CsvRow[]).filter((row) =>
+          Object.values(row).some((value) => value && value.toString().trim().length > 0),
+        );
+
+        if (cleanedRows.length === 0) {
+          toast.error('No product rows were found in the CSV file.');
+          return;
+        }
+
+        const importedProducts = convertRowsToProducts(cleanedRows);
+
+        if (importedProducts.length === 0) {
+          toast.error('No valid products could be created from the CSV file.');
+          return;
+        }
+
+        setProductsList((previousProducts) =>
+          mergeImportedProducts(previousProducts, importedProducts),
+        );
+        toast.success(
+          `${importedProducts.length} product${importedProducts.length > 1 ? 's' : ''} imported successfully.`,
+        );
+      },
+      error: (error) => {
+        console.error(error);
+        toast.error('Unable to read the CSV file. Please try again.');
+      },
+    });
+
+    event.target.value = '';
   };
 
   return (
@@ -173,6 +716,13 @@ export const Products: React.FC = () => {
             <p className="text-gray-600 mt-1">Manage your product catalog</p>
           </div>
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
             <Button variant="outline" onClick={handleImportProducts}>
               <Upload className="w-4 h-4 mr-2" />
               Import CSV
@@ -235,7 +785,7 @@ export const Products: React.FC = () => {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
+                      {categoryOptions.map((category) => (
                         <SelectItem key={category} value={category}>
                           {category}
                         </SelectItem>
@@ -436,7 +986,7 @@ export const Products: React.FC = () => {
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
