@@ -526,9 +526,15 @@ export const Products: React.FC = () => {
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
     const defaultImage = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+    const inventoryQuantity = Number.parseInt(formData.inventoryQuantity, 10);
+    const normalizedInventory = Number.isFinite(inventoryQuantity) ? inventoryQuantity : undefined;
+    const grams = convertWeightToGrams(formData.weight, formData.weightUnit);
+    const tags = parseTagsValue(formData.tags);
+    const costPerItem = Number.parseFloat(formData.costPerItem);
     const newProduct: Product = {
       id: Math.max(...productsList.map((p) => p.id), 0) + 1,
       title: formData.title,
+      handle: generateHandleFromTitle(formData.title),
       price: Number.parseFloat(formData.price) || 0,
       originalPrice: Number.parseFloat(formData.originalPrice) || 0,
       image: defaultImage,
@@ -538,7 +544,19 @@ export const Products: React.FC = () => {
       reviews: Number.parseInt(formData.reviews, 10) || 0,
       description: formData.description,
       bodyHtml: formData.description,
-      inStock: formData.inStock,
+      inStock:
+        formData.inStock && (normalizedInventory === undefined ? true : normalizedInventory > 0),
+      inventoryQuantity: normalizedInventory,
+      inventoryPolicy: formData.inventoryPolicy,
+      inventoryTracker: formData.inventoryTracker,
+      fulfillmentService: formData.fulfillmentService,
+      costPerItem: Number.isFinite(costPerItem) ? costPerItem : undefined,
+      sku: formData.sku.trim() || undefined,
+      barcode: formData.barcode.trim() || undefined,
+      vendor: formData.vendor.trim() || undefined,
+      tags,
+      grams,
+      weightUnit: formData.weightUnit,
     };
     setProductsList([...productsList, newProduct]);
     setIsAddDialogOpen(false);
