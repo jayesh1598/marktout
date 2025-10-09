@@ -568,11 +568,18 @@ export const Products: React.FC = () => {
     e.preventDefault();
     if (!editingProduct) return;
 
+    const inventoryQuantity = Number.parseInt(formData.inventoryQuantity, 10);
+    const normalizedInventory = Number.isFinite(inventoryQuantity) ? inventoryQuantity : undefined;
+    const grams = convertWeightToGrams(formData.weight, formData.weightUnit);
+    const tags = parseTagsValue(formData.tags);
+    const computedCostPerItem = Number.parseFloat(formData.costPerItem);
+
     const updatedProducts = productsList.map((product) =>
       product.id === editingProduct.id
         ? {
             ...product,
             title: formData.title,
+            handle: product.handle ?? generateHandleFromTitle(formData.title),
             price: Number.parseFloat(formData.price) || 0,
             originalPrice: Number.parseFloat(formData.originalPrice) || 0,
             category: formData.category,
@@ -580,7 +587,19 @@ export const Products: React.FC = () => {
             bodyHtml: formData.description,
             rating: Number.parseFloat(formData.rating) || 0,
             reviews: Number.parseInt(formData.reviews, 10) || 0,
-            inStock: formData.inStock,
+            inStock:
+              formData.inStock && (normalizedInventory === undefined ? true : normalizedInventory > 0),
+            inventoryQuantity: normalizedInventory,
+            inventoryPolicy: formData.inventoryPolicy,
+            inventoryTracker: formData.inventoryTracker,
+            fulfillmentService: formData.fulfillmentService,
+            costPerItem: Number.isFinite(computedCostPerItem) ? computedCostPerItem : undefined,
+            sku: formData.sku.trim() || undefined,
+            barcode: formData.barcode.trim() || undefined,
+            vendor: formData.vendor.trim() || undefined,
+            tags,
+            grams,
+            weightUnit: formData.weightUnit,
           }
         : product
     );
