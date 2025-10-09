@@ -329,11 +329,26 @@ export const Products: React.FC = () => {
     return Array.from(uniqueCategories.keys()).sort((a, b) => a.localeCompare(b));
   }, [productsList, formData.category]);
 
-  const filteredProducts = productsList.filter(
-    (product) =>
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredProducts = productsList.filter((product) => {
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const matchesTitle = product.title.toLowerCase().includes(normalizedQuery);
+    const matchesCategory = product.category
+      ?.toLowerCase()
+      .includes(normalizedQuery);
+    const matchesVendor = product.vendor
+      ?.toLowerCase()
+      .includes(normalizedQuery);
+    const matchesTags = product.tags?.some((tag) =>
+      tag.toLowerCase().includes(normalizedQuery),
+    );
+
+    return matchesTitle || matchesCategory || matchesVendor || matchesTags;
+  });
 
   const resetForm = () => {
     setFormData({
