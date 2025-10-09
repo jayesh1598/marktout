@@ -422,9 +422,14 @@ export const Products: React.FC = () => {
 
   const exportProducts = () => {
     const csvContent = `Title,Price,Original Price,Category,Rating,Reviews,In Stock,Description\n${
-      productsList.map(p => 
-        `"${p.title}",${p.price},${p.originalPrice || ''},${p.category},${p.rating},${p.reviews},${p.inStock !== false ? 'Yes' : 'No'},"${p.description || ''}"`
-      ).join('\n')
+      productsList
+        .map(
+          (p) =>
+            `"${p.title.replace(/"/g, '""')}",${p.price},${p.originalPrice || ''},${p.category},${p.rating},${p.reviews},${
+              p.inStock !== false ? 'Yes' : 'No'
+            },"${(p.bodyHtml ?? p.description ?? '').replace(/"/g, '""')}"`,
+        )
+        .join('\n')
     }`;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -436,7 +441,57 @@ export const Products: React.FC = () => {
   };
 
   const handleImportProducts = () => {
-    toast.info('Import CSV feature - Upload a CSV file with product data to bulk import');
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const [file] = event.target.files ?? [];
+
+    if (!file) {
+      return;
+    }
+
+    Papa.parse<CsvRow>(file, {
+      header: true,
+      skipEmptyLines: 'greedy',
+      transformHeader: (header) => header.trim(),
+      complete: (result) => {
+        if (result.errors.length > 0) {
+          console.error(result.errors);
+          toast.error('The CSV contains formatting errors. Please review and try again.');
+          return;
+        }
+
+        const cleanedRows = (result.data as CsvRow[]).filter((row) =>
+          Object.values(row).some((value) => value && value.toString().trim().length > 0),
+        );
+
+        if (cleanedRows.length === 0) {
+          toast.error('No product rows were found in the CSV file.');
+          return;
+        }
+
+        const importedProducts = convertRowsToProducts(cleanedRows);
+
+        if (importedProducts.length === 0) {
+          toast.error('No valid products could be created from the CSV file.');
+          return;
+        }
+
+        setProductsList((previousProducts) =>
+          mergeImportedProducts(previousProducts, importedProducts),
+        );
+        toast.success(
+          `${importedProducts.length} product${importedProducts.length > 1 ? 's' : ''} imported successfully.`,
+        );
+      },
+      error: (error) => {
+        console.error(error);
+        toast.error('Unable to read the CSV file. Please try again.');
+      },
+    });
+
+    event.target.value = '';
   };
 
   return (
