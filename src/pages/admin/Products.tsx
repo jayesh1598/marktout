@@ -550,7 +550,7 @@ export const Products: React.FC = () => {
       inventoryPolicy: formData.inventoryPolicy,
       inventoryTracker: formData.inventoryTracker,
       fulfillmentService: formData.fulfillmentService,
-      costPerItem: Number.isFinite(costPerItem) ? costPerItem : undefined,
+      costPerItem: Number.isFinite(computedCostPerItem) ? computedCostPerItem : undefined,
       sku: formData.sku.trim() || undefined,
       barcode: formData.barcode.trim() || undefined,
       vendor: formData.vendor.trim() || undefined,
