@@ -380,12 +380,13 @@ export const Products: React.FC = () => {
         ? {
             ...product,
             title: formData.title,
-            price: parseFloat(formData.price),
-            originalPrice: parseFloat(formData.originalPrice) || 0,
+            price: Number.parseFloat(formData.price) || 0,
+            originalPrice: Number.parseFloat(formData.originalPrice) || 0,
             category: formData.category,
             description: formData.description,
-            rating: parseFloat(formData.rating),
-            reviews: parseInt(formData.reviews),
+            bodyHtml: formData.description,
+            rating: Number.parseFloat(formData.rating) || 0,
+            reviews: Number.parseInt(formData.reviews, 10) || 0,
             inStock: formData.inStock,
           }
         : product
