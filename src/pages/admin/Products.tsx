@@ -300,6 +300,7 @@ const mergeImportedProducts = (
 
 export const Products: React.FC = () => {
   const [productsList, setProductsList] = useState<Product[]>(initialProducts as Product[]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -314,6 +315,19 @@ export const Products: React.FC = () => {
     reviews: '0',
     inStock: true,
   });
+
+  const categoryOptions = useMemo(() => {
+    const uniqueCategories = new Map<string, true>();
+    productsList.forEach((product) => {
+      if (product.category) {
+        uniqueCategories.set(product.category, true);
+      }
+    });
+    if (formData.category) {
+      uniqueCategories.set(formData.category, true);
+    }
+    return Array.from(uniqueCategories.keys()).sort((a, b) => a.localeCompare(b));
+  }, [productsList, formData.category]);
 
   const filteredProducts = productsList.filter(
     (product) =>
