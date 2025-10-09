@@ -272,13 +272,6 @@ const convertWeightToGrams = (
   }
 };
 
-const sortRowsByImagePosition = (rows: CsvRow[]): CsvRow[] =>
-  [...rows].sort((a, b) => {
-    const positionA = parseIntegerValue(a['Image Position']) ?? Number.MAX_SAFE_INTEGER;
-    const positionB = parseIntegerValue(b['Image Position']) ?? Number.MAX_SAFE_INTEGER;
-    return positionA - positionB;
-  });
-
 const createProductFromGroup = (
   handle: string,
   groupRows: CsvRow[],
