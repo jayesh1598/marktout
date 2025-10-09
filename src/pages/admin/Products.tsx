@@ -21,7 +21,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { Plus, Pencil, Trash2, Search, Upload, Download } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Upload,
+  Download,
+  Package,
+  BarChart2,
+  Activity,
+  Megaphone,
+  CreditCard,
+  Truck,
+} from 'lucide-react';
 import Papa from 'papaparse';
 import { toast } from 'sonner@2.0.3';
 
