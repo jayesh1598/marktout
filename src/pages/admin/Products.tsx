@@ -69,6 +69,235 @@ type Product = CatalogProduct & {
   csvRows?: CsvRow[];
 };
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+
+const parseNumberValue = (value?: string | null): number | undefined => {
+  const normalized = value?.toString().trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const numeric = Number(normalized.replace(/[^0-9.-]+/g, ''));
+  return Number.isFinite(numeric) ? numeric : undefined;
+};
+
+const parseIntegerValue = (value?: string | null): number | undefined => {
+  const numeric = parseNumberValue(value);
+  if (numeric === undefined) {
+    return undefined;
+  }
+  return Math.round(numeric);
+};
+
+const parseBooleanValue = (value?: string | null): boolean | undefined => {
+  const normalized = value?.toString().trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+  if (['true', 'yes', '1'].includes(normalized)) {
+    return true;
+  }
+  if (['false', 'no', '0'].includes(normalized)) {
+    return false;
+  }
+  return undefined;
+};
+
+const parseTagsValue = (value?: string | null): string[] =>
+  value
+    ? value
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0)
+    : [];
+
+const extractDescriptionText = (html?: string | null): string => {
+  if (!html) {
+    return '';
+  }
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
+const buildOptionValues = (row: CsvRow): OptionValue[] => {
+  const optionKeys: Array<[string, string]> = [
+    ['Option1 Name', 'Option1 Value'],
+    ['Option2 Name', 'Option2 Value'],
+    ['Option3 Name', 'Option3 Value'],
+  ];
+
+  return optionKeys
+    .map(([nameKey, valueKey]) => {
+      const name = row[nameKey]?.toString().trim();
+      const value = row[valueKey]?.toString().trim();
+      if (!name || !value) {
+        return null;
+      }
+      return { name, value };
+    })
+    .filter((option): option is OptionValue => option !== null);
+};
+
+const collectGoogleLabels = (row: CsvRow): string[] => {
+  const labelKeys = [
+    'Google Shopping / Custom Label 0',
+    'Google Shopping / Custom Label 1',
+    'Google Shopping / Custom Label 2',
+    'Google Shopping / Custom Label 3',
+    'Google Shopping / Custom Label 4',
+  ];
+
+  return labelKeys
+    .map((key) => row[key]?.toString().trim())
+    .filter((label): label is string => !!label && label.length > 0);
+};
+
+const collectAdWordsLabels = (row: CsvRow): string[] =>
+  parseTagsValue(row['Google Shopping / AdWords Labels']);
+
+const collectImageGallery = (rows: CsvRow[]): string[] =>
+  rows
+    .map((row) => row['Image Src']?.toString().trim())
+    .filter((src): src is string => !!src && src.length > 0);
+
+const sortRowsByImagePosition = (rows: CsvRow[]): CsvRow[] =>
+  [...rows].sort((a, b) => {
+    const positionA = parseIntegerValue(a['Image Position']) ?? Number.MAX_SAFE_INTEGER;
+    const positionB = parseIntegerValue(b['Image Position']) ?? Number.MAX_SAFE_INTEGER;
+    return positionA - positionB;
+  });
+
+const createProductFromGroup = (
+  handle: string,
+  groupRows: CsvRow[],
+): Omit<Product, 'id'> | null => {
+  const sortedRows = sortRowsByImagePosition(groupRows);
+  const primaryRow = sortedRows[0];
+
+  if (!primaryRow) {
+    return null;
+  }
+
+  const title = primaryRow['Title']?.toString().trim();
+
+  if (!title) {
+    return null;
+  }
+
+  const bodyHtml = primaryRow['Body (HTML)']?.toString();
+  const descriptionText = extractDescriptionText(bodyHtml);
+
+  const price = parseNumberValue(primaryRow['Variant Price']) ?? 0;
+  const compareAt = parseNumberValue(primaryRow['Variant Compare At Price']) ?? 0;
+  const inventoryQty = parseIntegerValue(primaryRow['Variant Inventory Qty']);
+  const imageGallery = collectImageGallery(sortedRows);
+  const tags = parseTagsValue(primaryRow['Tags']);
+  const requiresShipping = parseBooleanValue(primaryRow['Variant Requires Shipping']);
+  const taxable = parseBooleanValue(primaryRow['Variant Taxable']);
+  const published = parseBooleanValue(primaryRow['Published']);
+  const giftCard = parseBooleanValue(primaryRow['Gift Card']);
+  const customProductFlag = parseBooleanValue(primaryRow['Google Shopping / Custom Product']);
+
+  return {
+    title,
+    price,
+    originalPrice: compareAt,
+    image: imageGallery[0] ?? FALLBACK_IMAGE,
+    imageGallery,
+    category:
+      primaryRow['Custom Product Type']?.toString().trim() ||
+      primaryRow['Standardized Product Type']?.toString().trim() ||
+      'Uncategorized',
+    rating: 0,
+    reviews: 0,
+    description: descriptionText,
+    bodyHtml,
+    inStock: inventoryQty !== undefined ? inventoryQty > 0 : true,
+    handle,
+    vendor: primaryRow['Vendor']?.toString().trim(),
+    tags,
+    standardizedProductType: primaryRow['Standardized Product Type']?.toString().trim(),
+    customProductType: primaryRow['Custom Product Type']?.toString().trim(),
+    sku: primaryRow['Variant SKU']?.toString().trim(),
+    barcode: primaryRow['Variant Barcode']?.toString().trim(),
+    status: primaryRow['Status']?.toString().trim(),
+    inventoryQuantity: inventoryQty,
+    inventoryPolicy: primaryRow['Variant Inventory Policy']?.toString().trim(),
+    inventoryTracker: primaryRow['Variant Inventory Tracker']?.toString().trim(),
+    fulfillmentService: primaryRow['Variant Fulfillment Service']?.toString().trim(),
+    requiresShipping,
+    taxable,
+    grams: parseNumberValue(primaryRow['Variant Grams']),
+    weightUnit: primaryRow['Variant Weight Unit']?.toString().trim(),
+    seoTitle: primaryRow['SEO Title']?.toString().trim(),
+    seoDescription: primaryRow['SEO Description']?.toString().trim(),
+    googleProductCategory: primaryRow['Google Shopping / Google Product Category']?.toString().trim(),
+    googleShoppingGender: primaryRow['Google Shopping / Gender']?.toString().trim(),
+    googleShoppingAgeGroup: primaryRow['Google Shopping / Age Group']?.toString().trim(),
+    googleShoppingMpn: primaryRow['Google Shopping / MPN']?.toString().trim(),
+    googleShoppingAdWordsGrouping: primaryRow['Google Shopping / AdWords Grouping']?.toString().trim(),
+    googleShoppingAdWordsLabels: collectAdWordsLabels(primaryRow),
+    googleShoppingCondition: primaryRow['Google Shopping / Condition']?.toString().trim(),
+    googleShoppingCustomProduct: customProductFlag,
+    googleShoppingCustomLabels: collectGoogleLabels(primaryRow),
+    giftCard,
+    published,
+    optionValues: buildOptionValues(primaryRow),
+    costPerItem: parseNumberValue(primaryRow['Cost per item']),
+    csvRows: groupRows,
+  };
+};
+
+const convertRowsToProducts = (rows: CsvRow[]): Omit<Product, 'id'>[] => {
+  const grouped = new Map<string, CsvRow[]>();
+
+  rows.forEach((row) => {
+    const handle = row['Handle']?.toString().trim();
+    if (!handle) {
+      return;
+    }
+    const group = grouped.get(handle) ?? [];
+    group.push(row);
+    grouped.set(handle, group);
+  });
+
+  const products: Omit<Product, 'id'>[] = [];
+  grouped.forEach((groupRows, handle) => {
+    const product = createProductFromGroup(handle, groupRows);
+    if (product) {
+      products.push(product);
+    }
+  });
+
+  return products;
+};
+
+const mergeImportedProducts = (
+  existing: Product[],
+  incoming: Omit<Product, 'id'>[],
+): Product[] => {
+  let maxId = existing.reduce((max, product) => Math.max(max, product.id), 0);
+  const updated = [...existing];
+
+  incoming.forEach((product) => {
+    const handleKey = product.handle?.toLowerCase();
+    const existingIndex = handleKey
+      ? updated.findIndex((item) => item.handle?.toLowerCase() === handleKey)
+      : -1;
+
+    if (existingIndex >= 0) {
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        ...product,
+      };
+    } else {
+      maxId += 1;
+      updated.push({ ...product, id: maxId });
+    }
+  });
+
+  return updated;
+};
+
 export const Products: React.FC = () => {
   const [productsList, setProductsList] = useState<Product[]>(initialProducts as Product[]);
   const [searchQuery, setSearchQuery] = useState('');
