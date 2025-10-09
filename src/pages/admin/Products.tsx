@@ -123,6 +123,34 @@ type InventorySettings = {
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
 
+const createDefaultFormState = (): ProductFormState => ({
+  title: '',
+  price: '',
+  originalPrice: '',
+  category: '',
+  description: '',
+  rating: '5',
+  reviews: '0',
+  inStock: true,
+  sku: '',
+  barcode: '',
+  vendor: '',
+  inventoryQuantity: '',
+  inventoryPolicy: 'deny',
+  inventoryTracker: 'shopify',
+  fulfillmentService: 'manual',
+  costPerItem: '',
+  tags: '',
+  weight: '',
+  weightUnit: 'g',
+});
+
+const defaultInventorySettings: InventorySettings = {
+  reorderPoint: '25',
+  safetyStock: '50',
+  restockLeadTime: '7',
+};
+
 const parseNumberValue = (value?: string | null): number | undefined => {
   const normalized = value?.toString().trim();
   if (!normalized) {
