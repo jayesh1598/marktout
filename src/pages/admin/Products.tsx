@@ -82,6 +82,44 @@ type Product = CatalogProduct & {
   csvRows?: CsvRow[];
 };
 
+type IntegrationStatus = 'connected' | 'not_connected';
+
+type IntegrationItem = {
+  id: string;
+  name: string;
+  description: string;
+  status: IntegrationStatus;
+  docsUrl?: string;
+};
+
+type ProductFormState = {
+  title: string;
+  price: string;
+  originalPrice: string;
+  category: string;
+  description: string;
+  rating: string;
+  reviews: string;
+  inStock: boolean;
+  sku: string;
+  barcode: string;
+  vendor: string;
+  inventoryQuantity: string;
+  inventoryPolicy: 'continue' | 'deny';
+  inventoryTracker: 'shopify' | 'custom';
+  fulfillmentService: 'manual' | 'third-party';
+  costPerItem: string;
+  tags: string;
+  weight: string;
+  weightUnit: 'g' | 'kg' | 'lb';
+};
+
+type InventorySettings = {
+  reorderPoint: string;
+  safetyStock: string;
+  restockLeadTime: string;
+};
+
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
 
