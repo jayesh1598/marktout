@@ -504,6 +504,13 @@ export const Products: React.FC = () => {
             <p className="text-gray-600 mt-1">Manage your product catalog</p>
           </div>
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
             <Button variant="outline" onClick={handleImportProducts}>
               <Upload className="w-4 h-4 mr-2" />
               Import CSV
