@@ -412,7 +412,7 @@ export const Products: React.FC = () => {
       price: product.price.toString(),
       originalPrice: product.originalPrice?.toString() || '',
       category: product.category,
-      description: product.description || '',
+      description: product.bodyHtml ?? product.description ?? '',
       rating: product.rating.toString(),
       reviews: product.reviews.toString(),
       inStock: product.inStock !== false,
