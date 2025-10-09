@@ -530,7 +530,7 @@ export const Products: React.FC = () => {
     const normalizedInventory = Number.isFinite(inventoryQuantity) ? inventoryQuantity : undefined;
     const grams = convertWeightToGrams(formData.weight, formData.weightUnit);
     const tags = parseTagsValue(formData.tags);
-    const costPerItem = Number.parseFloat(formData.costPerItem);
+    const computedCostPerItem = Number.parseFloat(formData.costPerItem);
     const newProduct: Product = {
       id: Math.max(...productsList.map((p) => p.id), 0) + 1,
       title: formData.title,
