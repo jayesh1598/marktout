@@ -119,12 +119,6 @@ type ProductFormState = {
   seoDescription: string;
 };
 
-type InventorySettings = {
-  reorderPoint: string;
-  safetyStock: string;
-  restockLeadTime: string;
-};
-
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
 
