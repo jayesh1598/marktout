@@ -404,6 +404,7 @@ const convertRowsToProducts = (rows: CsvRow[]): Omit<Product, 'id'>[] => {
 const mergeImportedProducts = (
   existing: Product[],
   incoming: Omit<Product, 'id'>[],
+  mode: 'update' | 'skip-duplicates' = 'update',
 ): Product[] => {
   let maxId = existing.reduce((max, product) => Math.max(max, product.id), 0);
   const updated = [...existing];
@@ -415,10 +416,12 @@ const mergeImportedProducts = (
       : -1;
 
     if (existingIndex >= 0) {
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        ...product,
-      };
+      if (mode === 'update') {
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          ...product,
+        };
+      }
     } else {
       maxId += 1;
       updated.push({ ...product, id: maxId });
