@@ -522,6 +522,37 @@ export const Products: React.FC = () => {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importFileName, setImportFileName] = useState('');
 
+  const importSummary = useMemo(() => {
+    if (importPreview.length === 0) {
+      return null;
+    }
+
+    let newCount = 0;
+    let updateCount = 0;
+    let skippedCount = 0;
+
+    const existingHandles = new Set(
+      productsList
+        .map((product) => product.handle?.toLowerCase())
+        .filter((handle): handle is string => !!handle),
+    );
+
+    importPreview.forEach((product) => {
+      const handle = product.handle?.toLowerCase();
+      if (handle && existingHandles.has(handle)) {
+        if (importMode === 'skip-duplicates') {
+          skippedCount += 1;
+        } else {
+          updateCount += 1;
+        }
+      } else {
+        newCount += 1;
+      }
+    });
+
+    return { newCount, updateCount, skippedCount };
+  }, [importPreview, productsList, importMode]);
+
   const categoryOptions = useMemo(() => {
     const uniqueCategories = new Map<string, true>();
     productsList.forEach((product) => {
