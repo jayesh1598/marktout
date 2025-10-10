@@ -6,8 +6,80 @@ import { Label } from '../../components/ui/label';
 import { Switch } from '../../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Bell, Store, CreditCard, Shield, Palette, Save } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
+import { Bell, Store, CreditCard, Shield, Palette, Save, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
+
+type PaymentGatewayId = 'razorpay' | 'phonepe' | 'cashfree' | 'stripe' | 'paypal' | 'cod';
+
+type PaymentGateway = {
+  id: PaymentGatewayId;
+  name: string;
+  description: string;
+  features: string[];
+  settlement: string;
+  docsUrl: string;
+  recommended?: boolean;
+};
+
+const paymentGateways: PaymentGateway[] = [
+  {
+    id: 'razorpay',
+    name: 'Razorpay UPI & Cards',
+    description:
+      'Unified Indian checkout experience with support for UPI, cards, net banking, BNPL, and EMI plans.',
+    features: ['UPI', 'Cards', 'Net Banking'],
+    settlement: 'T+1 settlement cycle',
+    docsUrl: 'https://razorpay.com/docs/payments/payment-gateway/quick-start/',
+    recommended: true,
+  },
+  {
+    id: 'phonepe',
+    name: 'PhonePe Payment Gateway',
+    description:
+      'Accept payments through PhonePe wallet, UPI intent flows, and auto-reconciled settlements for marketplaces.',
+    features: ['PhonePe Wallet', 'UPI Intent', 'Auto Reconciliation'],
+    settlement: 'T+1 settlement cycle',
+    docsUrl: 'https://www.phonepe.com/business-solutions/payment-gateway/',
+  },
+  {
+    id: 'cashfree',
+    name: 'Cashfree Payments',
+    description:
+      'Collect domestic and international payments with routing, payouts, and instant settlement capabilities.',
+    features: ['UPI', 'Cards', 'Pay Later'],
+    settlement: 'Instant settlement (Optional add-on)',
+    docsUrl: 'https://docs.cashfree.com/docs/payment-gateway/overview',
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe',
+    description:
+      'Global card processing with powerful APIs, subscription billing, and multi-currency support.',
+    features: ['Cards', 'Apple Pay', 'Subscriptions'],
+    settlement: 'T+2 settlement cycle',
+    docsUrl: 'https://stripe.com/docs/payments',
+  },
+  {
+    id: 'paypal',
+    name: 'PayPal',
+    description:
+      'Offer PayPal wallet and PayPal Credit to international shoppers while protecting high-risk transactions.',
+    features: ['PayPal Wallet', 'Buyer Protection'],
+    settlement: 'Instant transfer to PayPal balance',
+    docsUrl: 'https://www.paypal.com/businessmanage/solutions/checkout',
+  },
+  {
+    id: 'cod',
+    name: 'Cash on Delivery',
+    description:
+      'Allow customers to pay with cash or card on delivery with courier reconciliation workflows.',
+    features: ['Manual Reconciliation', 'COD Verification'],
+    settlement: 'On delivery fulfilment',
+    docsUrl: 'https://help.shopify.com/en/manual/payments/manual-payments',
+  },
+];
 
 export const Settings: React.FC = () => {
   const [notifications, setNotifications] = useState({
@@ -21,16 +93,21 @@ export const Settings: React.FC = () => {
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'MarkTout',
     storeEmail: 'support@marktout.com',
-    storePhone: '+1 (555) 123-4567',
-    currency: 'USD',
-    timezone: 'America/New_York',
+    storePhone: '+91 98765 43210',
+    currency: 'INR',
+    timezone: 'Asia/Kolkata',
   });
 
-  const [paymentMethods, setPaymentMethods] = useState({
-    stripe: true,
-    paypal: true,
-    cod: false,
+  const [paymentMethods, setPaymentMethods] = useState<Record<PaymentGatewayId, boolean>>({
+    razorpay: true,
+    phonepe: true,
+    cashfree: false,
+    stripe: false,
+    paypal: false,
+    cod: true,
   });
+
+  const [defaultPaymentGateway, setDefaultPaymentGateway] = useState<PaymentGatewayId>('razorpay');
 
   const [security, setSecurity] = useState({
     twoFactor: false,
@@ -43,6 +120,22 @@ export const Settings: React.FC = () => {
     showSidebarLabels: true,
   });
 
+  const handleGatewayToggle = (gatewayId: PaymentGatewayId, enabled: boolean) => {
+    if (!enabled && defaultPaymentGateway === gatewayId) {
+      toast.error('Select a different default gateway before disabling this one.');
+      return;
+    }
+    setPaymentMethods((previous) => ({ ...previous, [gatewayId]: enabled }));
+  };
+
+  const handleSelectDefaultGateway = (gatewayId: PaymentGatewayId) => {
+    if (!paymentMethods[gatewayId]) {
+      setPaymentMethods((previous) => ({ ...previous, [gatewayId]: true }));
+      toast.info('Enabled the payment gateway so it can be set as default.');
+    }
+    setDefaultPaymentGateway(gatewayId);
+  };
+
   const handleSaveNotifications = () => {
     toast.success('Notification settings saved successfully!');
   };
@@ -52,6 +145,10 @@ export const Settings: React.FC = () => {
   };
 
   const handleSavePayment = () => {
+    if (!paymentMethods[defaultPaymentGateway]) {
+      toast.error('Enable the default payment gateway before saving.');
+      return;
+    }
     toast.success('Payment settings saved successfully!');
   };
 
@@ -66,7 +163,6 @@ export const Settings: React.FC = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h2 className="text-gray-900">Settings</h2>
           <p className="text-gray-600 mt-1">Manage your store preferences and configuration</p>
@@ -96,7 +192,6 @@ export const Settings: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Notifications Tab */}
           <TabsContent value="notifications">
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
@@ -170,7 +265,6 @@ export const Settings: React.FC = () => {
             </div>
           </TabsContent>
 
-          {/* Store Tab */}
           <TabsContent value="store">
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
@@ -207,14 +301,18 @@ export const Settings: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <Label htmlFor="currency">Currency</Label>
-                    <Select value={storeSettings.currency} onValueChange={(value) => setStoreSettings({ ...storeSettings, currency: value })}>
+                    <Select
+                      value={storeSettings.currency}
+                      onValueChange={(value) => setStoreSettings({ ...storeSettings, currency: value })}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
                         <SelectItem value="USD">USD - US Dollar</SelectItem>
                         <SelectItem value="EUR">EUR - Euro</SelectItem>
                         <SelectItem value="GBP">GBP - British Pound</SelectItem>
@@ -225,11 +323,15 @@ export const Settings: React.FC = () => {
 
                   <div>
                     <Label htmlFor="timezone">Timezone</Label>
-                    <Select value={storeSettings.timezone} onValueChange={(value) => setStoreSettings({ ...storeSettings, timezone: value })}>
+                    <Select
+                      value={storeSettings.timezone}
+                      onValueChange={(value) => setStoreSettings({ ...storeSettings, timezone: value })}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Asia/Kolkata">India Standard Time</SelectItem>
                         <SelectItem value="America/New_York">Eastern Time</SelectItem>
                         <SelectItem value="America/Chicago">Central Time</SelectItem>
                         <SelectItem value="America/Denver">Mountain Time</SelectItem>
@@ -250,48 +352,101 @@ export const Settings: React.FC = () => {
             </div>
           </TabsContent>
 
-          {/* Payment Tab */}
           <TabsContent value="payment">
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-              <div>
-                <h3 className="text-gray-900 mb-1">Payment Methods</h3>
-                <p className="text-gray-600 text-sm">Enable or disable payment gateways</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-gray-900">Payment Methods</h3>
+                  <Badge className="bg-green-100 text-green-700 border-green-200">
+                    <CheckCircle2 className="size-3" />
+                    INR default
+                  </Badge>
+                </div>
+                <p className="text-gray-600 text-sm">
+                  Choose the gateways you want to offer and assign a default provider for INR payments.
+                </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <div className="text-gray-900">Stripe</div>
-                    <p className="text-gray-600 text-sm">Accept credit cards and digital wallets</p>
-                  </div>
-                  <Switch
-                    checked={paymentMethods.stripe}
-                    onCheckedChange={(checked) => setPaymentMethods({ ...paymentMethods, stripe: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <div className="text-gray-900">PayPal</div>
-                    <p className="text-gray-600 text-sm">Accept PayPal payments</p>
-                  </div>
-                  <Switch
-                    checked={paymentMethods.paypal}
-                    onCheckedChange={(checked) => setPaymentMethods({ ...paymentMethods, paypal: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <div className="text-gray-900">Cash on Delivery</div>
-                    <p className="text-gray-600 text-sm">Allow customers to pay on delivery</p>
-                  </div>
-                  <Switch
-                    checked={paymentMethods.cod}
-                    onCheckedChange={(checked) => setPaymentMethods({ ...paymentMethods, cod: checked })}
-                  />
-                </div>
-              </div>
+              <RadioGroup
+                value={defaultPaymentGateway}
+                onValueChange={(value) => handleSelectDefaultGateway(value as PaymentGatewayId)}
+                className="space-y-4"
+              >
+                {paymentGateways.map((gateway) => {
+                  const enabled = paymentMethods[gateway.id];
+                  return (
+                    <div
+                      key={gateway.id}
+                      className={`rounded-lg border ${
+                        enabled ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50'
+                      } p-4 transition-shadow hover:shadow-sm`}
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-1 items-start gap-3">
+                          <RadioGroupItem
+                            value={gateway.id}
+                            id={`default-${gateway.id}`}
+                            className="mt-1"
+                          />
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label
+                                htmlFor={`default-${gateway.id}`}
+                                className="cursor-pointer text-gray-900"
+                              >
+                                {gateway.name}
+                              </label>
+                              {gateway.recommended && (
+                                <Badge variant="secondary" className="border-purple-200 bg-purple-50 text-purple-700">
+                                  Recommended
+                                </Badge>
+                              )}
+                              {defaultPaymentGateway === gateway.id && (
+                                <Badge className="border-green-200 bg-green-100 text-green-700">
+                                  <CheckCircle2 className="size-3" />
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-gray-600 text-sm">{gateway.description}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {gateway.features.map((feature) => (
+                                <Badge
+                                  key={`${gateway.id}-${feature}`}
+                                  variant="secondary"
+                                  className="border-purple-200 bg-purple-50 text-purple-700"
+                                >
+                                  {feature}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                              <span>Settlement: {gateway.settlement}</span>
+                              <a
+                                href={gateway.docsUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-purple-600 hover:text-purple-700"
+                              >
+                                View docs
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-start gap-3 sm:items-end">
+                          <Switch
+                            id={`toggle-${gateway.id}`}
+                            checked={enabled}
+                            onCheckedChange={(checked) => handleGatewayToggle(gateway.id, checked)}
+                            aria-label={`Enable ${gateway.name}`}
+                          />
+                          <span className="text-xs text-gray-500">Enable gateway</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </RadioGroup>
 
               <div className="flex justify-end">
                 <Button onClick={handleSavePayment} className="bg-purple-600 hover:bg-purple-700">
@@ -302,7 +457,6 @@ export const Settings: React.FC = () => {
             </div>
           </TabsContent>
 
-          {/* Security Tab */}
           <TabsContent value="security">
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
@@ -360,7 +514,6 @@ export const Settings: React.FC = () => {
             </div>
           </TabsContent>
 
-          {/* Appearance Tab */}
           <TabsContent value="appearance">
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
@@ -371,7 +524,10 @@ export const Settings: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="theme">Theme</Label>
-                  <Select value={appearance.theme} onValueChange={(value) => setAppearance({ ...appearance, theme: value })}>
+                  <Select
+                    value={appearance.theme}
+                    onValueChange={(value) => setAppearance({ ...appearance, theme: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
