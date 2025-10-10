@@ -106,8 +106,7 @@ export function Header() {
           <a href="#categories" className="hover:text-purple-700 transition-colors">Categories</a>
           <a href="#deals" className="hover:text-purple-700 transition-colors">Deals</a>
           <a href="#new" className="hover:text-purple-700 transition-colors">New Arrivals</a>
-          <Link to="/about" className="hover:text-purple-700 transition-colors">About</Link>
-          <Link to="/contact" className="hover:text-purple-700 transition-colors">Contact</Link>
+       
           <Link to="/admin" className="hover:text-purple-700 transition-colors text-purple-600">Admin</Link>
         </nav>
       </div>
