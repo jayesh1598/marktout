@@ -516,6 +516,11 @@ export const Products: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductFormState>(createDefaultFormState());
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<Omit<Product, 'id'>[]>([]);
+  const [importMode, setImportMode] = useState<'update' | 'skip-duplicates'>('update');
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importFileName, setImportFileName] = useState('');
 
   const categoryOptions = useMemo(() => {
     const uniqueCategories = new Map<string, true>();
