@@ -30,12 +30,6 @@ import {
   Search,
   Upload,
   Download,
-  Package,
-  BarChart2,
-  Activity,
-  Megaphone,
-  CreditCard,
-  Truck,
   Tag,
 } from 'lucide-react';
 import Papa from 'papaparse';
