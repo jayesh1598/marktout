@@ -588,6 +588,13 @@ export const Products: React.FC = () => {
     setFormData(createDefaultFormState());
   };
 
+  const resetImportState = () => {
+    setImportPreview([]);
+    setImportErrors([]);
+    setImportMode('update');
+    setImportFileName('');
+  };
+
   const handleAddProduct = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newProductDraft = buildProductDraft(formData, FALLBACK_IMAGE);
