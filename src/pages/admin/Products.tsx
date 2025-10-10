@@ -79,16 +79,6 @@ type Product = CatalogProduct & {
   csvRows?: CsvRow[];
 };
 
-type IntegrationStatus = 'connected' | 'not_connected';
-
-type IntegrationItem = {
-  id: string;
-  name: string;
-  description: string;
-  status: IntegrationStatus;
-  docsUrl?: string;
-};
-
 type ProductFormState = {
   title: string;
   handle: string;
