@@ -103,11 +103,10 @@ export function Header() {
         <nav className="hidden lg:flex items-center justify-center gap-8 mt-4 pt-4 border-t">
           <Link to="/" className="hover:text-purple-700 transition-colors">Home</Link>
           <Link to="/shop" className="hover:text-purple-700 transition-colors">Shop</Link>
-          <a href="#categories" className="hover:text-purple-700 transition-colors">Categories</a>
-          <a href="#deals" className="hover:text-purple-700 transition-colors">Deals</a>
-          <a href="#new" className="hover:text-purple-700 transition-colors">New Arrivals</a>
-       
-          <Link to="/admin" className="hover:text-purple-700 transition-colors text-purple-600">Admin</Link>
+          <Link to="/categories" className="hover:text-purple-700 transition-colors">Categories</Link>
+          <Link to="/deals" className="hover:text-purple-700 transition-colors">Deals</Link>
+          <Link to="/new-arrivals" className="hover:text-purple-700 transition-colors">New Arrivals</Link>
+          <Link to="/login" className="hover:text-purple-700 transition-colors">Login</Link>
         </nav>
       </div>
       
