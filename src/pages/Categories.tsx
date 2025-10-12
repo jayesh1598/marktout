@@ -3,6 +3,7 @@ import { categories, products } from '../data/products';
 import { CategoryCard } from '../components/CategoryCard';
 import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/button';
+import { Link } from 'react-router-dom';
 
 const ALL_CATEGORIES_LABEL = 'All Categories';
 
@@ -83,10 +84,11 @@ export function Categories() {
               </p>
             </div>
             <Button
+              asChild
               variant="ghost"
               className="categories-shop-button text-purple-700 hover:text-purple-800"
             >
-              View Full Collection
+              <Link to="/shop">View Full Collection</Link>
             </Button>
           </div>
 
