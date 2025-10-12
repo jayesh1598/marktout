@@ -12,6 +12,9 @@ import { Contact } from './pages/Contact';
 import { About } from './pages/About';
 import { OrderSuccess } from './pages/OrderSuccess';
 import { Wishlist } from './pages/Wishlist';
+import { Categories } from './pages/Categories';
+import { Deals } from './pages/Deals';
+import { NewArrivals } from './pages/NewArrivals';
 import { Dashboard } from './pages/admin/Dashboard';
 import { Products } from './pages/admin/Products';
 import { Orders } from './pages/admin/Orders';
@@ -62,6 +65,9 @@ export default function App() {
                           <Route path="/about" element={<About />} />
                           <Route path="/order-success" element={<OrderSuccess />} />
                           <Route path="/wishlist" element={<Wishlist />} />
+                          <Route path="/categories" element={<Categories />} />
+                          <Route path="/deals" element={<Deals />} />
+                          <Route path="/new-arrivals" element={<NewArrivals />} />
                         </Routes>
                       </div>
                       <Footer />
